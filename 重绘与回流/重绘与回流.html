@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>重绘与回流</title>
+  <!-- <link rel="stylesheet" href="lib/css/monokai-sublime.css"> -->
+  <link rel="stylesheet" href="lib/css/default.min.css">
+  <link rel="stylesheet" href="lib/css/vs2015.css">
+  <link rel="stylesheet" href="lib/css/zTreeStyle/zTreeStyle.css">
+  <link rel="stylesheet" href="lib/css/base.css">
+  <link rel="stylesheet" href="lib/css/index.css">
+</head>
+
+<body>
+  <div style='width:25%;'>
+    <ul id="tree" class="ztree" style='width:100%'>
+
+    </ul>
+  </div>
+  <div id='readme' style='width:70%;margin-left:20%;'>
+    <article class='markdown-body'><h1 id="-reflow-repaint-">回流（reflow）与重绘（repaint）</h1>
+<p>回流（reflow）与重绘（repaint），在性能优化的时候，经常会提起，因为涉及到浏览器底层的渲染，所以掌握的童鞋并不多，但是面试经常被提及。而且在解决一些bug上，也能派上用场。</p>
+<h1 id="-">浏览器渲染机制</h1>
+<blockquote>
+<p>在讨论页面重绘、回流之前。需要对页面的呈现流程有些了解，页面是怎么把html结合css等显示到浏览器上的，下面的流程图显示了浏览器对页面的呈现的处理流程。可能不同的浏览器略微会有些不同。但基本上都是类似的。</p>
+</blockquote>
+<p><img src="./8_1.jpg"></p>
+<ul>
+<li><strong>1.解析HTML以构建DOM树</strong> 浏览器把获取到的HTML代码解析成1个DOM树，HTML中的每个标签都是DOM树中的1个节点。</li>
+<li><strong>2.解析css样式</strong>：浏览器把所有样式(用户定义的CSS和用户代理)解析成<strong>样式结构体</strong> ，在解析的过程中会去掉浏览器不能识别的样式，比如IE会去掉-moz开头的样式，而FF会去掉_开头的样式。</li>
+<li><strong>3.构建渲染树</strong>：DOM Tree 和样式结构体组合后构建render tree，render tree不同于DOM树，render tree能识别样式，render tree中每个NODE都有自己的style，而且 render tree不包含隐藏的节点 (比如display:none的节点，还有head节点)，<strong>一旦render tree构建完毕后，浏览器就可以根据render tree来绘制页面了。</strong> </li>
+<li><strong>4.布局渲染树</strong>：从根节点递归调用，计算每一个元素的大小、位置等，给每个节点所应该出现在屏幕上的精确坐标。 +</li>
+<li><strong>5.绘制渲染树</strong>：遍历渲染树，每个节点将使用UI后端层来绘制。</li>
+</ul>
+<h1 id="-">重绘与回流</h1>
+<p><code>回流(reflow)</code>:发生在第4阶段，当render tree中的一部分(或全部)因为元素的规模尺寸，布局，隐藏等改变而需要重新构建。</p>
+<p><code>重绘(repaint)</code>：发生在第5阶段，当render tree中的一些元素需要更新属性，而这些属性只是影响元素的外观，风格，而不会影响布局的，比如background-color。</p>
+<ol>
+<li>每个页面至少需要一次回流+重绘。</li>
+<li>回流必将引起重绘</li>
+</ol>
+<p>回流什么时候发生？</p>
+<p>1、添加或者删除可见的DOM元素；</p>
+<p>2、元素位置改变；</p>
+<p>3、元素尺寸改变——边距、填充、边框、宽度和高度</p>
+<p>4、内容改变——比如文本改变或者图片大小改变而引起的计算值宽度和高度改变；</p>
+<p>5、页面渲染初始化；</p>
+<p>6、浏览器窗口尺寸改变——resize事件发生时；</p>
+<pre><code class="lang-javascript">var s = document.body.style;
+s.padding = &quot;2px&quot;; // 回流+重绘
+s.border = &quot;1px solid red&quot;; // 再一次 回流+重绘
+s.color = &quot;blue&quot;; // 再一次重绘
+s.backgroundColor = &quot;#ccc&quot;; // 再一次 重绘
+s.fontSize = &quot;14px&quot;; // 再一次 回流+重绘
+// 添加node，再一次 回流+重绘
+document.body.appendChild(document.createTextNode(&#39;abc!&#39;));
+</code></pre>
+<h1 id="-">聪明的浏览器</h1>
+<blockquote>
+<p>从上个实例代码中可以看到几行简单的JS代码就引起了6次左右的回流、重绘。而且我们也知道回流的花销也不小，如果每句JS操作都去回流重绘的话，浏览器可能就会受不了。所以很多浏览器都会优化这些操作，浏览器会维护1个队列，把所有会引起回流、重绘的操作放入这个队列，等队列中的操作到了一定的数量或者到了一定的时间间隔，浏览器就会Refresh队列，进行一个批处理。这样就会让多次的回流、重绘变成一次回流重绘。</p>
+</blockquote>
+<p>虽然有了浏览器的优化，但有时候我们写的一些代码可能会强制浏览器提前Refresh队列，这样浏览器的优化可能就起不到作用了。当你请求向浏览器请求一些 style信息的时候，就会让浏览器Refresh队列，比如：</p>
+<p>1.offsetTop, offsetLeft, offsetWidth, offsetHeight</p>
+<p>2.scrollTop/Left/Width/Height</p>
+<p>3.clientTop/Left/Width/Height</p>
+<p>4.请求了getComputedStyle(), 或者 IE的 currentStyle</p>
+<h1 id="-">如何性能优化</h1>
+<blockquote>
+<p>减少回流与重绘的次数，就需要简单对渲染树的操作。</p>
+</blockquote>
+<ol>
+<li>直接使用className修改样式，少用style设置样式</li>
+<li>让要操作的元素进行”离线处理”，处理完后一起更新 <ul>
+<li>使用display:none技术，减少回流和重绘的次数</li>
+</ul>
+</li>
+<li>将需要多次重排的元素，position属性设为absolute或fixed，这样此元素就脱离了文档流，它的变化不会影响到其他元素为动画的 HTML 元素，例如动画，那么修改他们的 CSS 是会大大减小 reflow 。</li>
+<li><strong>完成功能是前提，在完成功能的情况下想着优化代码</strong> </li>
+</ol>
+</article>
+  </div>
+</body>
+</html>
+<script type="text/javascript" src="lib/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="lib/js/jquery.ztree.all-3.5.min.js"></script>
+<script type="text/javascript" src="lib/js/ztree_toc.min.js"></script>
+<script type="text/javascript" src="lib/js/toc_conf.js"></script>
+<script src="lib/js/highlight.min.js"></script>
+<script>
+  $(document).ready(function () {
+    // 代码高亮的js代码
+    hljs.initHighlightingOnLoad();
+
+    //生成侧边栏的代码
+    var css_conf = eval(markdown_panel_style);
+    $('#readme').css(css_conf)
+
+    var conf = eval(jquery_ztree_toc_opts);
+    $('#tree').ztree_toc(conf);
+  });
+</script>

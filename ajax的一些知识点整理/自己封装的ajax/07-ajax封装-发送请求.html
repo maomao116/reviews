@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+
+  <button id="get">发送get请求</button>
+  <button id="post">发送post请求</button>
+
+  <script>
+    // 要求: 都要传参, username=pp&password=123456
+
+    var getBtn = document.getElementById("get");
+    var postBtn = document.querySelector("#post");
+    
+    getBtn.onclick = function() {
+      // 发送 get 请求
+      ajax({
+        type: "get",
+        url: "06-get.php",
+        params: "username=pp&password=123456"
+      })
+    }
+
+    postBtn.onclick = function() {
+      // 发送 post 请求
+      ajax({
+        type: "post",
+        url: "06-post.php",
+        params: "username=pp&password=123456"
+      })
+    }
+
+
+    // 分析不同, 分析需要传递的参数
+    // type: get | post,  默认是 get
+    // url:  必须传的, 需要注意, get 要拼接参数
+    // async: 默认就是 true
+    // params: 请求的参数
+    
+    // 作用: 根据传递的参数, 发送 ajax 请求
+    function ajax( options ) {  // options 就是一个对象
+      
+      // 如果没有传 options 或者 options 不是一个对象, 直接 return
+      if ( !options || typeof options != "object" ) {
+        return;
+      }
+      
+      // 只要传进来不是 post, 就按 get 处理, 效果: 默认 get
+      // 传进来是 post, 是 post
+      var type = options.type === "post" ? "post" : "get";
+      
+      // 请求的地址
+      var url = options.url;
+      if ( !url ) {  // 地址必须传递
+        return;
+      }
+
+      // 只要传进来不是 false, 就按 true 处理, 效果: 默认 true
+      var async = options.async === false ? false : true;
+      
+      // 传递的参数
+      var params = options.params;
+
+      
+      var xhr = new XMLHttpRequest();
+      // 发送请求 遵循 http 协议
+
+      // 1 请求行 请求方式, 请求地址
+      //   get请求需要在 url 中传参
+      if ( type === "get" ) {
+        url = url + "?" + params;  // 06-post.php?username=pp
+        params = null; // 因为 get 请求, 参数已经拼接在 url 中, 没有请求体, 将 params 置为 null
+      }
+      xhr.open( type, url, async );
+
+      // 2 请求头
+      //   post 请求需要设置请求头
+      if ( type === "post" ) {
+        xhr.setRequestHeader( "content-type", "application/x-www-form-urlencoded");
+      }
+
+      // 3 请求体
+      xhr.send( params );
+    }
+
+    
+    // ajax({
+    //   type: "post",
+    //   url: "06-post.php",
+    //   params: "username=pp"
+    // })
+
+
+
+
+
+  </script>
+  
+</body>
+</html>
